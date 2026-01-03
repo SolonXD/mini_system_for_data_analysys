@@ -50,5 +50,69 @@ services:
       - "8888:8888"
     command: ["bash", "-lc", "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''"]
 
+  redash_redis:
+    image: redis:7-alpine
+    container_name: redash_redis
+    restart: unless-stopped
+    
+  redash_postgres:
+    image: postgres:16-alpine
+    container_name: redash_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: redash
+      POSTGRES_USER: redash
+      POSTGRES_PASSWORD: ${REDASH_POSTGRES_PASSWORD:-redashpass}
+    volumes:
+      - redash_pgdata:/var/lib/postgresql/data
+
+  redash_server:
+    image: redash/redash:25.8.0
+    container_name: redash_server
+    restart: unless-stopped
+    depends_on:
+      - redash_redis
+      - redash_postgres
+    environment:
+      REDASH_DATABASE_URL: postgresql://redash:${REDASH_POSTGRES_PASSWORD:-redashpass}@redash_postgres:5432/redash
+      REDASH_REDIS_URL: redis://redash_redis:6379/0
+      REDASH_COOKIE_SECRET: ${REDASH_COOKIE_SECRET}
+      REDASH_SECRET_KEY: ${REDASH_SECRET_KEY}
+      PYTHONUNBUFFERED: "0"
+      REDASH_LOG_LEVEL: "INFO"
+    ports:
+      - "5000:5000"
+    command: server
+
+  redash_scheduler:
+    image: redash/redash:25.8.0
+    container_name: redash_scheduler
+    restart: unless-stopped
+    depends_on:
+      - redash_server
+    environment:
+      REDASH_DATABASE_URL: postgresql://redash:${REDASH_POSTGRES_PASSWORD:-redashpass}@redash_postgres:5432/redash
+      REDASH_REDIS_URL: redis://redash_redis:6379/0
+      REDASH_COOKIE_SECRET: ${REDASH_COOKIE_SECRET}
+      REDASH_SECRET_KEY: ${REDASH_SECRET_KEY}
+      PYTHONUNBUFFERED: "0"
+      REDASH_LOG_LEVEL: "INFO"
+    command: scheduler
+
+  redash_worker:
+    image: redash/redash:25.8.0
+    container_name: redash_worker
+    restart: unless-stopped
+    depends_on:
+      - redash_server
+    environment:
+      REDASH_DATABASE_URL: postgresql://redash:${REDASH_POSTGRES_PASSWORD:-redashpass}@redash_postgres:5432/redash
+      REDASH_REDIS_URL: redis://redash_redis:6379/0
+      REDASH_COOKIE_SECRET: ${REDASH_COOKIE_SECRET}
+      REDASH_SECRET_KEY: ${REDASH_SECRET_KEY}
+      PYTHONUNBUFFERED: "0"
+      REDASH_LOG_LEVEL: "INFO"
+    command: worker
 volumes:
   pgdata:
+  redash_pgdata:
