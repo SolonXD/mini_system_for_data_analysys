@@ -25,11 +25,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-apppass}@db:5432/${POSTGRES_DB:-appdb}
     volumes:
       - ..:/app
-    command: ["bash", "-lc", "python -c \"print('App container is ready');\""]
+    command: ["bash", "-lc", "python -m generator.weather_generator"]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-apppass}@db:5432/${POSTGRES_DB:-appdb}
+      GEN_INTERVAL_SECONDS: "3"
+
     tty: true
 
   jupyter:
